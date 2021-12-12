@@ -27,7 +27,7 @@ impl<T> Extractor<T> {
 }
 
 impl<T> Extractor<T> {
-    pub fn output(&self, value: T) -> impl Future<Output = ()> + '_ {
+    pub fn put(&self, value: T) -> impl Future<Output = ()> + '_ {
         YieldFuture {
             target: self,
             queued: Some(value),
@@ -160,8 +160,8 @@ mod tests {
     fn direct_use() {
         let extractor = Extractor::new();
         let mut it = YieldIterator::new(&extractor, async {
-            extractor.output(42).await;
-            extractor.output(12).await;
+            extractor.put(42).await;
+            extractor.put(12).await;
         });
         let it = unsafe { Pin::new_unchecked(&mut it) };
 
@@ -171,10 +171,29 @@ mod tests {
     #[test]
     fn macro_use() {
         gen_iter!(let it = |extractor| {
-            extractor.output(42).await;
-            extractor.output(12).await;
+            extractor.put(42).await;
+            extractor.put(12).await;
         });
 
         assert_eq!(it.collect::<Vec<_>>(), vec![42, 12]);
+    }
+
+    #[test]
+    fn lazy() {
+        let step = Cell::new(0);
+        gen_iter!(let it = |ex| {
+            let mut pos = 0;
+            loop {
+                pos += 1;
+                step.set(pos);
+                ex.put(pos).await;
+            }
+        });
+
+        assert_eq!(0, step.get());
+        assert_eq!(1, it.next().unwrap());
+        assert_eq!(1, step.get());
+        assert_eq!(2, it.next().unwrap());
+        assert_eq!(2, step.get());
     }
 }
