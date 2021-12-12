@@ -3,25 +3,11 @@ use core::future::Future;
 use core::marker::Unpin;
 use core::ops::Deref;
 use core::pin::Pin;
-use core::ptr;
-use core::task::{Context, Poll, Waker, RawWaker, RawWakerVTable};
+use core::task::{Context, Poll, Waker};
 
 use pin_project::pin_project;
 
-// TODO: Wakers? Hmm :-|
-// TODO: Do we actually _need_ Unpin?
-
-unsafe fn waker_clone(_: *const ()) -> RawWaker {
-    null_waker()
-}
-
-unsafe fn nop(_: *const ()) { }
-
-const NULL_WAKER_TABLE: RawWakerVTable = RawWakerVTable::new(waker_clone, nop, nop, nop);
-
-fn null_waker() -> RawWaker {
-    RawWaker::new(ptr::null(), &NULL_WAKER_TABLE)
-}
+use crate::waker;
 
 struct Item<T> {
     value: T,
@@ -38,7 +24,6 @@ impl<T> Extractor<T> {
             item: Cell::new(None),
         }
     }
-
 }
 
 impl<T> Extractor<T> {
@@ -84,7 +69,7 @@ impl<T> Future for YieldFuture<'_, T> {
                 }));
                 Poll::Pending
             }
-            None => Poll::Ready(())
+            None => Poll::Ready(()),
         }
     }
 }
@@ -102,10 +87,6 @@ pub struct YieldIterator<E, Fut> {
     extractor: E,
     #[pin]
     generator: Option<Fut>,
-}
-
-fn get_waker() -> Waker {
-    unsafe { Waker::from_raw(null_waker()) }
 }
 
 impl<E, Fut, T> YieldIterator<E, Fut>
@@ -129,7 +110,7 @@ where
 
             match me.generator.as_mut().as_pin_mut() {
                 Some(fut) => {
-                    let waker = get_waker();
+                    let waker = waker::null();
                     let mut context = Context::from_waker(&waker);
                     match fut.poll(&mut context) {
                         Poll::Ready(()) => {
@@ -142,7 +123,6 @@ where
                         // once more.
                         Poll::Pending => (),
                     }
-
                 }
                 None => break None,
             }
