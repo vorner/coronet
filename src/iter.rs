@@ -142,6 +142,16 @@ where
     }
 }
 
+#[macro_export]
+macro_rules! gen_iter {
+    (let $name: ident = |$ex: ident| $block: block) => {
+        let $ex = $crate::iter::Extractor::new();
+        let mut $name = $crate::iter::YieldIterator::new(&$ex, async { $block });
+        #[allow(unused_mut)]
+        let mut $name = unsafe { core::pin::Pin::new_unchecked(&mut $name) };
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -154,6 +164,16 @@ mod tests {
             extractor.output(12).await;
         });
         let it = unsafe { Pin::new_unchecked(&mut it) };
+
+        assert_eq!(it.collect::<Vec<_>>(), vec![42, 12]);
+    }
+
+    #[test]
+    fn macro_use() {
+        gen_iter!(let it = |extractor| {
+            extractor.output(42).await;
+            extractor.output(12).await;
+        });
 
         assert_eq!(it.collect::<Vec<_>>(), vec![42, 12]);
     }
