@@ -1,0 +1,14 @@
+[package]
+name = "coronet"
+version = "0.1.0"
+edition = "2021"
+authors = ["Michal 'vorner' Vaner <vorner@vorner.cz>"]
+documentation = "https://docs.rs/coronet"
+repository = "https://github.com/vorner/coronet"
+readme = "README.md"
+# TODO: Keywords, categories
+license = "Apache-2.0/MIT"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
